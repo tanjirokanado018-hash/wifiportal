@@ -1,0 +1,45 @@
+workflows:
+  android-apk:
+    name: WifiPortal APK Build
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+
+    environment:
+      node: 20.17.0
+      java: 17
+      vars:
+        APP_DIR: artifacts/wifiportal
+
+    scripts:
+      - name: Install dependencies
+        script: |
+          corepack disable 2>/dev/null || true
+          npm install -g pnpm@9 --force 2>/dev/null || true
+          COREPACK_INTEGRITY_KEYS=0 pnpm install --no-frozen-lockfile
+
+      - name: Expo prebuild (generate native Android code)
+        script: |
+          cd $APP_DIR
+          COREPACK_INTEGRITY_KEYS=0 npx expo prebuild --platform android --clean --no-install
+
+      - name: Install Android dependencies
+        script: |
+          cd $APP_DIR
+          COREPACK_INTEGRITY_KEYS=0 pnpm install --no-frozen-lockfile
+
+      - name: Build debug APK (no signing needed)
+        script: |
+          cd $APP_DIR/android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+    artifacts:
+      - artifacts/wifiportal/android/app/build/outputs/apk/debug/app-debug.apk
+
+    publishing:
+      email:
+        recipients:
+          - your@email.com
+        notify:
+          success: true
+          failure: true
